@@ -1,0 +1,82 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "karma.fullname" . }}-config
+  labels:
+    app: {{ include "karma.name" . }}
+data:
+  karma.yml: |
+    alertmanager:
+      servers:
+{{ toYaml .Values.config.alertmanager.servers | indent 8 }}
+
+    {{- if .Values.config.authentication }}
+    authentication:
+      basic:
+{{ toYaml .Values.config.authentication.users | indent 8 }}
+    {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "karma.fullname" . }}
+  labels:
+    app: {{ include "karma.name" . }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "karma.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "karma.name" . }}
+    spec:
+      containers:
+        - name: karma
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - "--config.file=/etc/karma/karma.yml"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/karma
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "karma.fullname" . }}-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "karma.fullname" . }}
+spec:
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: {{ include "karma.name" . }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "karma.fullname" . }}
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  rules:
+    - host: {{ .Values.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "karma.fullname" . }}
+                port:
+                  number: {{ .Values.service.port }}
