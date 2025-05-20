@@ -80,3 +80,4 @@ spec:
                 name: {{ include "karma.fullname" . }}
                 port:
                   number: {{ .Values.service.port }}
+                  
