@@ -1,6 +1,7 @@
 import os
 import base64
 import requests
+import sys
 
 # --- ENVIRONMENT VARIABLES ---
 HARBOR_URL = os.getenv("HARBOR_URL")  # ví dụ: https://harbor.mycorp.com
