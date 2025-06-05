@@ -10,33 +10,49 @@ setup_harbor:
   image: $PYTHON_IMAGE
   script:
     - pip install requests
+
+    # Chạy script tạo Harbor project và robot
     - python $PYTHON_SCRIPT "$PROJECT_NAME"
+
+    # Hiển thị nội dung file .env
+    - echo "📝 Generated .env:"
     - cat .env
 
     # Đọc biến từ .env
-    - export $(cat .env | xargs)
+    - export $(grep '=' .env | xargs)
 
-    # Gửi biến vào GitLab Project #1 (push)
-    - curl --header "PRIVATE-TOKEN: $CI_JOB_TOKEN" --request PUT \
-        --form "key=HARBOR_PROJECT_PROD" --form "value=$HARBOR_PROJECT_PROD" \
-        "https://gitlab.com/api/v4/projects/$PROJECT1_ID/variables/HARBOR_PROJECT_PROD"
+    # Kiểm tra loại môi trường dựa trên tên project
+    - |
+      if [[ "$PROJECT_NAME" == dev-* ]]; then
+        echo "📦 Dev project detected"
+        export TARGET_PROJECT_ID="$PROJECT1_ID"
+        
+        # Gửi tất cả biến vào cùng 1 project (dev)
+        for var in HARBOR_PROJECT_DEV HARBOR_USER_DEV HARBOR_TOKEN_DEV HARBOR_PULL_USER_DEV HARBOR_PULL_TOKEN_DEV; do
+          curl --silent --show-error --fail --request PUT \
+            --header "PRIVATE-TOKEN: $CI_JOB_TOKEN" \
+            --form "key=$var" --form "value=${!var}" \
+            "https://gitlab.com/api/v4/projects/$TARGET_PROJECT_ID/variables/$var"
+        done
+      else
+        echo "📦 Prod project detected"
 
-    - curl --header "PRIVATE-TOKEN: $CI_JOB_TOKEN" --request PUT \
-        --form "key=HARBOR_USER_PROD" --form "value=$HARBOR_USER_PROD" \
-        "https://gitlab.com/api/v4/projects/$PROJECT1_ID/variables/HARBOR_USER_PROD"
+        # Gửi biến push vào Project #1
+        for var in HARBOR_PROJECT_PROD HARBOR_USER_PROD HARBOR_TOKEN_PROD; do
+          curl --silent --show-error --fail --request PUT \
+            --header "PRIVATE-TOKEN: $CI_JOB_TOKEN" \
+            --form "key=$var" --form "value=${!var}" \
+            "https://gitlab.com/api/v4/projects/$PROJECT1_ID/variables/$var"
+        done
 
-    - curl --header "PRIVATE-TOKEN: $CI_JOB_TOKEN" --request PUT \
-        --form "key=HARBOR_TOKEN_PROD" --form "value=$HARBOR_TOKEN_PROD" \
-        "https://gitlab.com/api/v4/projects/$PROJECT1_ID/variables/HARBOR_TOKEN_PROD"
-
-    # Gửi biến vào GitLab Project #2 (pull-only)
-    - curl --header "PRIVATE-TOKEN: $CI_JOB_TOKEN" --request PUT \
-        --form "key=HARBOR_PULL_USER_PROD" --form "value=$HARBOR_PULL_USER_PROD" \
-        "https://gitlab.com/api/v4/projects/$PROJECT2_ID/variables/HARBOR_PULL_USER_PROD"
-
-    - curl --header "PRIVATE-TOKEN: $CI_JOB_TOKEN" --request PUT \
-        --form "key=HARBOR_PULL_TOKEN_PROD" --form "value=$HARBOR_PULL_TOKEN_PROD" \
-        "https://gitlab.com/api/v4/projects/$PROJECT2_ID/variables/HARBOR_PULL_TOKEN_PROD"
+        # Gửi biến pull-only vào Project #2
+        for var in HARBOR_PULL_USER_PROD HARBOR_PULL_TOKEN_PROD; do
+          curl --silent --show-error --fail --request PUT \
+            --header "PRIVATE-TOKEN: $CI_JOB_TOKEN" \
+            --form "key=$var" --form "value=${!var}" \
+            "https://gitlab.com/api/v4/projects/$PROJECT2_ID/variables/$var"
+        done
+      fi
 
   only:
     - manual
