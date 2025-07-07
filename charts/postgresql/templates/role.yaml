@@ -7,7 +7,7 @@ SPDX-License-Identifier: APACHE-2.0
 kind: Role
 apiVersion: {{ include "common.capabilities.rbac.apiVersion" . }}
 metadata:
-  name: {{ include "postgresql.v1.chart.fullname" . }}
+  name: {{ include "common.names.fullname" . }}
   namespace: {{ include "common.names.namespace" . | quote }}
   labels: {{- include "common.labels.standard" ( dict "customLabels" .Values.commonLabels "context" $ ) | nindent 4 }}
   {{- if .Values.commonAnnotations }}
@@ -23,7 +23,7 @@ rules:
     verbs:
       - 'use'
     resourceNames:
-      - {{ include "postgresql.v1.chart.fullname" . }}
+      - {{ include "common.names.fullname" . }}
   {{- end }}
   {{- if .Values.rbac.rules }}
   {{- include "common.tplvalues.render" ( dict "value" .Values.rbac.rules "context" $ ) | nindent 2 }}
